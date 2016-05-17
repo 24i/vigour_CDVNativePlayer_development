@@ -10,10 +10,37 @@
 @import AVKit;
 @import AVFoundation;
 
+enum {
+    PlayerDidResumePlay,
+    PlayerDidPause,
+    PlayerDidFinishPlaying,
+    PlayerDidFinishSeek,
+    PlayerStalled,
+    PlayerWindowDidClose,
+};
 
-@interface CDVNativePlayer : CDVPlugin
+@protocol NativePlayerViewControllerDelegate <NSObject>
+@required
+- (void)playerDidResumePlay;
+- (void)playerDidPause;
+- (void)playerDidFinishPlaying;
+- (void)playerDidFinishSeek;
+- (void)playerStalled;
+- (void)playerWindowDidClose;
+@end
 
-@property AVPlayerViewController *playerViewController;
+@interface NoDRMPlayerViewController : AVPlayerViewController
+@property (nonatomic, weak) id <NativePlayerViewControllerDelegate> cordovaDelegate;
+@end
+
+
+
+
+
+
+@interface CDVNativePlayer : CDVPlugin <NativePlayerViewControllerDelegate>
+
+@property NoDRMPlayerViewController *playerViewController;
 - (void)create:(CDVInvokedUrlCommand*)command;
 - (void)load:(CDVInvokedUrlCommand*)command;
 - (void)play:(CDVInvokedUrlCommand*)command;
@@ -24,5 +51,3 @@
 
 @end
 
-@interface NoDRMPlayerViewController : AVPlayerViewController
-@end

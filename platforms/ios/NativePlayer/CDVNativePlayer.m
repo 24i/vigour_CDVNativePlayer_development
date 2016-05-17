@@ -25,7 +25,9 @@
     }
     else
     {
-        self.playerViewController = [AVPlayerViewController new];
+        self.playerViewController = [NoDRMPlayerViewController new];
+        self.playerViewController.cordovaDelegate = self;
+        
         NSURL *url = [NSURL URLWithString:urlString]; //check for nil
         AVPlayer *player = [AVPlayer playerWithURL:url];
         self.playerViewController.player = player;
@@ -44,18 +46,28 @@
     }
 }
 
-- (void)load:(CDVInvokedUrlCommand*)command {
+- (void)load:(CDVInvokedUrlCommand*)command { // not tested
     NSLog(NSStringFromSelector(_cmd), nil);
+    
+    NSString *urlString = [command argumentAtIndex:0];
+    NSURL *url = [NSURL URLWithString:urlString]; //check for nil
+    AVPlayer *player = [AVPlayer playerWithURL:url];
+    self.playerViewController.player = player;
+    NSLog(@"New player loaded");
+    [player play];
 }
-- (void)play:(CDVInvokedUrlCommand*)command {
+- (void)play:(CDVInvokedUrlCommand*)command
+{
     NSLog(NSStringFromSelector(_cmd), nil);
     [self.playerViewController.player play];
 }
-- (void)pause:(CDVInvokedUrlCommand*)command {
+- (void)pause:(CDVInvokedUrlCommand*)command
+{
     NSLog(NSStringFromSelector(_cmd), nil);
     [self.playerViewController.player pause];
 }
-- (void)seek:(CDVInvokedUrlCommand*)command {
+- (void)seek:(CDVInvokedUrlCommand*)command
+{
     NSLog(NSStringFromSelector(_cmd), nil);
     
     Float64 timeInSeconds = [[command argumentAtIndex:0] floatValue];
@@ -74,37 +86,62 @@
     NSLog(NSStringFromSelector(_cmd), nil);
 }
 
-// events
-- (void)didResumePlay
-{
+
+// NativePlayerViewControllerDelegate,
+- (void)playerDidResumePlay{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [(UIWebView*)self.webViewEngine stringByEvaluatingJavaScriptFromString:@"playing"]; // replace with event
+    [self sendCordovaEvent:PlayerDidResumePlay];
 }
-- (void)didPause
-{
+- (void)playerDidPause{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [(UIWebView*)self.webViewEngine stringByEvaluatingJavaScriptFromString:@"paused"]; // replace with event
+    [self sendCordovaEvent:PlayerDidPause];
 }
-- (void)didFinishSeek:(int)position
-{
+- (void)playerDidFinishPlaying{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [(UIWebView*)self.webViewEngine stringByEvaluatingJavaScriptFromString:@"seek"]; // replace with event
+    [self sendCordovaEvent:PlayerDidFinishPlaying];
 }
-- (void)stalled
-{
+- (void)playerDidFinishSeek{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [(UIWebView*)self.webViewEngine stringByEvaluatingJavaScriptFromString:@"stalled"]; // replace with event
+    [self sendCordovaEvent:PlayerDidFinishSeek];
+}
+- (void)playerStalled{
+    NSLog(NSStringFromSelector(_cmd), nil);
+    [self sendCordovaEvent:PlayerStalled];
+}
+- (void)playerWindowDidClose{
+    NSLog(NSStringFromSelector(_cmd), nil);
+    [self sendCordovaEvent:PlayerWindowDidClose];
+}
+
+// forwarding events to Cordova
+- (void)sendCordovaEvent:(int)event {
+    NSLog(@"Event sent: %i", event);
+    NSString* jsString = [NSString stringWithFormat:@"%@(\"%i\");", @"cordova.require('cordova-plugin-media.Media').onStatus", event];
+    [self.commandDelegate evalJs:jsString];
 }
 
 @end
+
+// NoDRMPlayerViewController
+@interface NoDRMPlayerViewController()
+@end
+
 
 @implementation NoDRMPlayerViewController
 
 - (void)viewDidLoad
 {
+    
+    [super viewDidLoad];
+    
     [self.player addObserver:self forKeyPath:@"rate" options:NSKeyValueObservingOptionNew context:nil];
     [self.player addObserver:self forKeyPath:@"playbackBufferEmpty" options:NSKeyValueObservingOptionNew context:nil];
     [self.player addObserver:self forKeyPath:@"playbackLikelyToKeepUp" options:NSKeyValueObservingOptionNew context:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(didFinishPlaying:)
+                                                 name:AVPlayerItemDidPlayToEndTimeNotification
+                                               object:nil];
+
 }
 
 - (void)viewDidDisappear:(BOOL)animated
@@ -112,19 +149,57 @@
     [self.player removeObserver:self forKeyPath:@"rate"];
     [self.player removeObserver:self forKeyPath:@"playbackBufferEmpty"];
     [self.player removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
+    [self playerWillClose];
+    
+    [super viewDidDisappear:animated];
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSString *,id> *)change context:(void *)context
 {
-    if ([keyPath isEqualToString:@"rate"]){
-        
+    if ([keyPath isEqualToString:@"rate"])
+    {
+        if (self.player.rate == 0.0) {[self didPause];}
+        else {[self didResumePlay];
+        }
     }
-    else if ([keyPath isEqualToString:@"playbackBufferEmpty"]){
-        
+    else if ([keyPath isEqualToString:@"playbackBufferEmpty"])
+    {
+        [self stalled];
     }
-    else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]){
-        
+    else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]) {}
+    
+    else
+    {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }
+}
+
+// interface to plugin
+- (void)didResumePlay
+{
+    [self.cordovaDelegate playerDidResumePlay];
+}
+- (void)didPause
+{
+    [self.cordovaDelegate playerDidPause];
+}
+- (void)didFinishPlaying:(NSNotification*)notification
+{
+    [self.cordovaDelegate playerDidFinishPlaying];
+}
+- (void)didFinishSeek:(int)position
+{
+    [self.cordovaDelegate playerDidFinishSeek];
+}
+- (void)stalled
+{
+    [self.cordovaDelegate playerStalled];
+}
+- (void)playerWillClose
+{
+    [self.cordovaDelegate playerWindowDidClose];
 }
 
 @end
