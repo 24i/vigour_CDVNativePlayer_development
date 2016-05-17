@@ -116,7 +116,7 @@
 // forwarding events to Cordova
 - (void)sendCordovaEvent:(int)event {
     NSLog(@"Event sent: %i", event);
-    NSString* jsString = [NSString stringWithFormat:@"%@(\"%i\");", @"cordova.require('cordova-plugin-media.Media').onStatus", event];
+    NSString* jsString = [NSString stringWithFormat:@"%@(\"%i\");", @"cordova.require('cordova-plugin-nativePlayer.NativePlayer').onStatus", event];
     [self.commandDelegate evalJs:jsString];
 }
 
@@ -141,6 +141,10 @@
                                              selector:@selector(didFinishPlaying:)
                                                  name:AVPlayerItemDidPlayToEndTimeNotification
                                                object:nil];
+//    [[NSNotificationCenter defaultCenter] addObserver:self
+//                                             selector:@selector(didFinishSeek:)
+//                                                 name:??
+//                                               object:nil];
 
 }
 
