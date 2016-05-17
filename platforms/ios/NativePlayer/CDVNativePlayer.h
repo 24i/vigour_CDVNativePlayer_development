@@ -24,22 +24,18 @@ enum {
 - (void)playerDidResumePlay;
 - (void)playerDidPause;
 - (void)playerDidFinishPlaying;
-- (void)playerDidFinishSeek;
+- (void)playerDidFinishSeek:(int)resumePositionInSeconds;
 - (void)playerStalled;
 - (void)playerWindowDidClose;
 @end
 
+
+// NoDRMPlayerViewController //
 @interface NoDRMPlayerViewController : AVPlayerViewController
 @property (nonatomic, weak) id <NativePlayerViewControllerDelegate> cordovaDelegate;
 @end
 
-
-
-
-
-
 @interface CDVNativePlayer : CDVPlugin <NativePlayerViewControllerDelegate>
-
 @property NoDRMPlayerViewController *playerViewController;
 - (void)create:(CDVInvokedUrlCommand*)command;
 - (void)load:(CDVInvokedUrlCommand*)command;
@@ -48,6 +44,5 @@ enum {
 - (void)seek:(CDVInvokedUrlCommand*)command;
 - (void)getProgress:(CDVInvokedUrlCommand*)command;
 - (void)getBuffered:(CDVInvokedUrlCommand*)command;
-
 @end
 

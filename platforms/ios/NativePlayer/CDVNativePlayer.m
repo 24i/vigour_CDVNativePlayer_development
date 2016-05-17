@@ -8,6 +8,7 @@
 
 #import "CDVNativePlayer.h"
 
+#pragma mark CDVNativePlayer
 @implementation CDVNativePlayer
 
 - (void)create:(CDVInvokedUrlCommand*)command
@@ -87,42 +88,43 @@
 }
 
 
-// NativePlayerViewControllerDelegate,
+// NativePlayerViewControllerDelegate //
 - (void)playerDidResumePlay{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerDidResumePlay];
+    [self sendCordovaEvent:PlayerDidResumePlay value: nil];
 }
 - (void)playerDidPause{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerDidPause];
+    [self sendCordovaEvent:PlayerDidPause value: nil];
 }
 - (void)playerDidFinishPlaying{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerDidFinishPlaying];
+    [self sendCordovaEvent:PlayerDidFinishPlaying value: nil];
 }
-- (void)playerDidFinishSeek{
+- (void)playerDidFinishSeek:(int)resumePositionInSeconds{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerDidFinishSeek];
+    [self sendCordovaEvent:PlayerDidFinishSeek value: [NSString stringWithFormat:@"%i", resumePositionInSeconds]];
 }
 - (void)playerStalled{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerStalled];
+    [self sendCordovaEvent:PlayerStalled value: nil];
 }
 - (void)playerWindowDidClose{
     NSLog(NSStringFromSelector(_cmd), nil);
-    [self sendCordovaEvent:PlayerWindowDidClose];
+    [self sendCordovaEvent:PlayerWindowDidClose value: nil];
 }
 
 // forwarding events to Cordova
-- (void)sendCordovaEvent:(int)event {
+- (void)sendCordovaEvent:(int)event value:(NSString*)value{
     NSLog(@"Event sent: %i", event);
-    NSString* jsString = [NSString stringWithFormat:@"%@(\"%i\");", @"cordova.require('cordova-plugin-nativePlayer.NativePlayer').onStatus", event];
+    NSString* jsString = [NSString stringWithFormat:@"%@(\"%i\", %@);", @"cordova.require('cordova-plugin-nativePlayer.NativePlayer').onStatus", event, value];
     [self.commandDelegate evalJs:jsString];
 }
 
 @end
 
-// NoDRMPlayerViewController
+
+#pragma mark NoDRMPlayerViewController
 @interface NoDRMPlayerViewController()
 @end
 
@@ -141,10 +143,10 @@
                                              selector:@selector(didFinishPlaying:)
                                                  name:AVPlayerItemDidPlayToEndTimeNotification
                                                object:nil];
-//    [[NSNotificationCenter defaultCenter] addObserver:self
-//                                             selector:@selector(didFinishSeek:)
-//                                                 name:??
-//                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(didFinishSeek:)
+                                                 name:nil
+                                               object:nil];
 
 }
 
@@ -184,6 +186,9 @@
 - (void)didResumePlay
 {
     [self.cordovaDelegate playerDidResumePlay];
+    int progressInSeconds = (int)CMTimeGetSeconds([self.player currentTime]);
+    [self.cordovaDelegate playerDidFinishSeek:progressInSeconds];
+
 }
 - (void)didPause
 {
@@ -195,7 +200,9 @@
 }
 - (void)didFinishSeek:(int)position
 {
-    [self.cordovaDelegate playerDidFinishSeek];
+//    [self.cordovaDelegate playerDidFinishSeek];
+    
+    NSLog([NSNotification description], nil);
 }
 - (void)stalled
 {
